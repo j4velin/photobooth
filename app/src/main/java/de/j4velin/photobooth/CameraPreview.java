@@ -64,6 +64,12 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     }
 
     @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopService(new Intent(getApplicationContext(), SocketService.class));
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         if (checkSelfPermission(
