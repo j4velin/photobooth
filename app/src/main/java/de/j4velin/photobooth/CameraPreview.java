@@ -55,6 +55,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     private final static boolean CAMERA_ENABLED = BuildConfig.DEBUG;
 
     private final List<ICamera.CameraCallback> cameraCallbacks = new ArrayList<>(1);
+    private final Handler handler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -227,7 +228,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
                                             builder.addTarget(surface);
                                             CaptureRequest request = builder.build();
                                             cameraCaptureSession.setRepeatingRequest(request, null
-                                                    , null);
+                                                    , handler);
                                         } catch (CameraAccessException e) {
                                             if (BuildConfig.DEBUG)
                                                 e.printStackTrace();
@@ -271,17 +272,22 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
 
     @Override
     public void enableTrigger(final TriggerCallback callback) {
-        cameraView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                callback.takePhoto();
-            }
-        });
+        if (cameraView != null) {
+            cameraView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    callback.takePhoto();
+                }
+            });
+        } else if (BuildConfig.DEBUG) Log.e(Main.TAG,
+                "Cant enable trigger: cameraView is still null");
     }
 
     @Override
     public void disableTrigger() {
-        cameraView.setClickable(false);
+        if (cameraView != null) {
+            cameraView.setClickable(false);
+        }
     }
 
     @Override
@@ -300,7 +306,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
                         if (BuildConfig.DEBUG) Log.e(Main.TAG, "Capture failed: " + failure);
                         super.onCaptureFailed(session, request, failure);
                     }
-                }, null);
+                }, handler);
             } catch (CameraAccessException e) {
                 e.printStackTrace();
             }
@@ -321,7 +327,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     public void displayImage(Drawable image) {
         imageView.setImageDrawable(image);
         imageView.setVisibility(View.VISIBLE);
-        new Handler().postDelayed(new Runnable() {
+        handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 imageView.setVisibility(View.GONE);
