@@ -19,7 +19,7 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
     @Override
     public void onCreate() {
         super.onCreate();
-        cameras.add(new GoProCamera(getApplicationContext()));
+        addCamera(new GoProCamera(getApplicationContext()));
     }
 
     public void addCamera(final ICamera camera) {
