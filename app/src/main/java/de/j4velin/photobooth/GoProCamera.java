@@ -16,10 +16,16 @@ import com.google.gson.JsonParser;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -27,7 +33,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-// TODO add keep-alive
 public class GoProCamera implements ICamera {
 
     private final static String GOPRO_IP = "10.5.5.9";
@@ -42,12 +47,59 @@ public class GoProCamera implements ICamera {
     private final static Request GET_MEDIA_REQUEST =
             new Request.Builder().url("http://" + GOPRO_IP + ":8080/gp/gpMediaList").build();
 
+    private final static int KEEP_ALIVE_PORT = 8554;
+    private final static int KEEP_ALIVE_SLEEP = 5000;
+    private final static byte[] KEEP_ALIVE_MSG = "_GPHD_:0:0:2:0.000000\n".getBytes();
+
     private final static OkHttpClient client = new OkHttpClient();
     private final static JsonParser JSON_PARSER = new JsonParser();
     private final List<CameraCallback> cameraCallbacks = new ArrayList<>(1);
 
-    private Boolean gopro_ready = true;
     private boolean network_ready = false;
+
+    private final AtomicBoolean gopro_ready = new AtomicBoolean(true);
+    private final AtomicBoolean keepAlive = new AtomicBoolean(true);
+    private final BroadcastReceiver networkReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+            checkNetworkState(context);
+        }
+    };
+
+    private final Thread keepAliveThread = new Thread(new Runnable() {
+        @Override
+        public void run() {
+            if (BuildConfig.DEBUG)
+                Log.d(Main.TAG, "keep alive thread started");
+            try {
+                InetAddress address = InetAddress.getByName(GOPRO_IP);
+                DatagramPacket packet = new DatagramPacket(
+                        KEEP_ALIVE_MSG, KEEP_ALIVE_MSG.length, address, KEEP_ALIVE_PORT
+                );
+                DatagramSocket datagramSocket = new DatagramSocket();
+                while (keepAlive.get()) {
+                    try {
+                        datagramSocket.send(packet);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        Thread.sleep(KEEP_ALIVE_SLEEP);
+                    } catch (InterruptedException e) {
+                        if (BuildConfig.DEBUG)
+                            Log.w(Main.TAG, "keep alive sleep interrupted: " + e.getMessage());
+                    }
+                }
+            } catch (SocketException | UnknownHostException e) {
+                e.printStackTrace();
+                if (BuildConfig.DEBUG)
+                    Log.e(Main.TAG,
+                            "cant send keepalive packet: " + e.getMessage());
+            }
+            if (BuildConfig.DEBUG)
+                Log.d(Main.TAG, "keep alive thread ended");
+        }
+    });
 
     private final Thread takePhotoThread = new Thread(new Runnable() {
         @Override
@@ -76,7 +128,7 @@ public class GoProCamera implements ICamera {
                     Response mediaResponse = client.newCall(GET_MEDIA_REQUEST).execute();
                     if (mediaResponse.isSuccessful()) {
                         synchronized (gopro_ready) {
-                            gopro_ready = true;
+                            gopro_ready.set(true);
                         }
                         JsonArray mediaArray =
                                 JSON_PARSER.parse(mediaResponse.body().string()).getAsJsonObject()
@@ -112,19 +164,15 @@ public class GoProCamera implements ICamera {
                 if (BuildConfig.DEBUG) e.printStackTrace();
             }
             synchronized (gopro_ready) {
-                gopro_ready = true;
+                gopro_ready.set(true);
             }
         }
     });
 
     GoProCamera(final Context context) {
         checkNetworkState(context);
-        context.registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(final Context context, final Intent intent) {
-                checkNetworkState(context);
-            }
-        }, new IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION));
+        context.registerReceiver(networkReceiver,
+                new IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION));
     }
 
     private void checkNetworkState(final Context context) {
@@ -144,17 +192,20 @@ public class GoProCamera implements ICamera {
 
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
-                    if (BuildConfig.DEBUG) Log.e(Main.TAG, "GoPro set to photo mode");
+                    if (BuildConfig.DEBUG) Log.i(Main.TAG, "GoPro set to photo mode");
                 }
             });
+            keepAlive.set(true);
+            keepAliveThread.start();
+        } else if (!network_ready) {
+            keepAlive.set(false);
         }
     }
 
     @Override
     public void takePhoto() {
         synchronized (gopro_ready) {
-            if (gopro_ready) {
-                gopro_ready = false;
+            if (gopro_ready.getAndSet(false)) {
                 takePhotoThread.start();
             }
         }
@@ -168,7 +219,14 @@ public class GoProCamera implements ICamera {
     @Override
     public boolean cameraIsReady() {
         synchronized (gopro_ready) {
-            return network_ready && gopro_ready;
+            return network_ready && gopro_ready.get();
         }
+    }
+
+    @Override
+    public void shutdownCamera(final Context context) {
+        keepAlive.set(false);
+        keepAliveThread.interrupt();
+        context.unregisterReceiver(networkReceiver);
     }
 }

@@ -24,7 +24,8 @@ public class SocketService extends Service implements ITrigger {
 
     @Override
     public int onStartCommand(final Intent intent, int flags, int startId) {
-        enableTrigger((Main) getApplicationContext());
+        Main main = (Main) getApplication();
+        main.addTrigger(this);
         return START_STICKY;
     }
 

@@ -1,5 +1,6 @@
 package de.j4velin.photobooth;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 
 public interface ICamera {
@@ -20,6 +21,13 @@ public interface ICamera {
      * @return true, if the camera is ready to take pictures
      */
     boolean cameraIsReady();
+
+    /**
+     * Stops this camera instance
+     *
+     * @param context the application context
+     */
+    void shutdownCamera(final Context context);
 
     interface CameraCallback {
 

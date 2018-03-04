@@ -3,7 +3,7 @@ package de.j4velin.photobooth;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.Intent;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -45,15 +45,15 @@ import java.util.Objects;
 public class CameraPreview extends Activity implements ITrigger, ICamera, IDisplay {
 
     private final static int REQUEST_CODE_CAMERA_PERMISSION = 1;
+    private final static boolean TRIGGER_ENABLED = true;
+
     private CameraDevice camera;
     private CameraCaptureSession session;
     private ImageReader imageReader;
     private TextureView cameraView;
     private ImageView imageView;
     private Surface surface;
-
-    private final static boolean TRIGGER_ENABLED = true;
-    private final static boolean CAMERA_ENABLED = BuildConfig.DEBUG;
+    private boolean camera_enabled = BuildConfig.DEBUG;
 
     private final List<ICamera.CameraCallback> cameraCallbacks = new ArrayList<>(1);
     private final Handler handler = new Handler();
@@ -61,14 +61,14 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ((Main) getApplication()).start();
         setContentView(R.layout.activity_main);
-        startService(new Intent(getApplicationContext(), SocketService.class));
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopService(new Intent(getApplicationContext(), SocketService.class));
+        ((Main) getApplication()).stop();
     }
 
     @Override
@@ -82,13 +82,12 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
             getWindow().getDecorView().setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
             setupPreviewSurface();
-            Main mainClass = (Main) getApplicationContext();
-            if (TRIGGER_ENABLED)
-                enableTrigger(mainClass);
-            if (CAMERA_ENABLED)
-                mainClass.addCamera(this);
-            mainClass.addDisplay(this);
         }
+        Main mainClass = (Main) getApplication();
+        if (TRIGGER_ENABLED)
+            mainClass.addTrigger(this);
+        mainClass.addCamera(this);
+        mainClass.addDisplay(this);
     }
 
     @Override
@@ -98,11 +97,12 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
             camera.close();
             camera = null;
         }
-        disableTrigger();
-        Main mainClass = (Main) getApplicationContext();
+        Main mainClass = (Main) getApplication();
         mainClass.removeCamera(this);
         mainClass.removeDisplay(this);
-        imageReader.close();
+        mainClass.removeTrigger(this);
+        if (imageReader != null)
+            imageReader.close();
         cameraCallbacks.clear();
     }
 
@@ -215,7 +215,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
                 @Override
                 public void onOpened(CameraDevice cameraDevice) {
                     if (BuildConfig.DEBUG)
-                        android.util.Log.i(Main.TAG, "Camera connected");
+                        android.util.Log.d(Main.TAG, "Camera connected");
                     CameraPreview.this.camera = cameraDevice;
                     try {
                         camera.createCaptureSession(
@@ -226,7 +226,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
                                             CameraCaptureSession cameraCaptureSession) {
                                         CameraPreview.this.session = cameraCaptureSession;
                                         if (BuildConfig.DEBUG)
-                                            android.util.Log.i(Main.TAG,
+                                            android.util.Log.d(Main.TAG,
                                                     "Camera capture session configured");
                                         try {
                                             CaptureRequest.Builder builder = camera
@@ -327,23 +327,38 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
 
     @Override
     public boolean cameraIsReady() {
-        return camera != null && session != null;
+        return camera_enabled && camera != null && session != null;
+    }
+
+    @Override
+    public void shutdownCamera(final Context context) {
+        camera_enabled = false;
     }
 
     @Override
     public void displayImage(final Bitmap image) {
         Matrix matrix = new Matrix();
         matrix.postRotate(90);
-        Bitmap rotated = Bitmap.createBitmap(image, 0, 0, image.getWidth(), image.getHeight(),
+        Bitmap rotated = Bitmap.createBitmap(image, 0, 0, image.getWidth(),
+                image.getHeight(),
                 matrix,
                 true);
-        Drawable drawable = new BitmapDrawable(getResources(), rotated);
-        imageView.setImageDrawable(drawable);
-        imageView.setVisibility(View.VISIBLE);
+        final Drawable drawable = new BitmapDrawable(getResources(), rotated);
+        final long tag = System.currentTimeMillis(); // "reset" timer by assigning a new tag
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                imageView.setImageDrawable(drawable);
+                imageView.setVisibility(View.VISIBLE);
+                imageView.setTag(tag);
+            }
+        });
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                imageView.setVisibility(View.GONE);
+                if (imageView.getTag().equals(tag)) {
+                    imageView.setVisibility(View.GONE);
+                }
             }
         }, 5000);
     }
