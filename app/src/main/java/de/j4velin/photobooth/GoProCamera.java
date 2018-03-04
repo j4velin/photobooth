@@ -79,8 +79,6 @@ public class GoProCamera implements ICamera {
                 DatagramSocket datagramSocket = new DatagramSocket();
                 while (keepAlive.get()) {
                     try {
-                        if (BuildConfig.DEBUG)
-                            Log.d(Main.TAG, "sending keep-alive");
                         datagramSocket.send(packet);
                     } catch (IOException e) {
                         e.printStackTrace();
