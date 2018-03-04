@@ -48,7 +48,7 @@ public class GoProCamera implements ICamera {
             new Request.Builder().url("http://" + GOPRO_IP + ":8080/gp/gpMediaList").build();
 
     private final static int KEEP_ALIVE_PORT = 8554;
-    private final static int KEEP_ALIVE_SLEEP = 5000;
+    private final static int KEEP_ALIVE_SLEEP = 2500;
     private final static byte[] KEEP_ALIVE_MSG = "_GPHD_:0:0:2:0.000000\n".getBytes();
 
     private final static OkHttpClient client = new OkHttpClient();
