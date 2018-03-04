@@ -3,6 +3,8 @@ package de.j4velin.photobooth;
 import android.content.Context;
 import android.graphics.Bitmap;
 
+import java.util.Comparator;
+
 public interface ICamera {
 
     /**
@@ -29,6 +31,17 @@ public interface ICamera {
      */
     void shutdownCamera(final Context context);
 
+    /**
+     * Gets the camera type
+     *
+     * @return the camera type
+     */
+    Type getCameraType();
+
+    enum Type {
+        Main, Backup
+    }
+
     interface CameraCallback {
 
         /**
@@ -37,5 +50,12 @@ public interface ICamera {
          * @param image the new photo
          */
         void imageReady(final Bitmap image);
+    }
+
+    class CameraComparator implements Comparator<ICamera> {
+        @Override
+        public int compare(ICamera c1, ICamera c2) {
+            return c1.getCameraType().ordinal() - c2.getCameraType().ordinal();
+        }
     }
 }

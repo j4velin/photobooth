@@ -338,6 +338,11 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     }
 
     @Override
+    public Type getCameraType() {
+        return Type.Backup;
+    }
+
+    @Override
     public void displayImage(final Bitmap image) {
         Matrix matrix = new Matrix();
         matrix.postRotate(90);

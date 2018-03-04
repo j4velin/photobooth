@@ -57,7 +57,7 @@ public class GoProCamera implements ICamera {
 
     private boolean network_ready = false;
 
-    private final AtomicBoolean gopro_ready = new AtomicBoolean(true);
+    private final AtomicBoolean gopro_ready = new AtomicBoolean(false);
     private final AtomicBoolean keepAlive = new AtomicBoolean(true);
     private final BroadcastReceiver networkReceiver = new BroadcastReceiver() {
         @Override
@@ -79,6 +79,8 @@ public class GoProCamera implements ICamera {
                 DatagramSocket datagramSocket = new DatagramSocket();
                 while (keepAlive.get()) {
                     try {
+                        if (BuildConfig.DEBUG)
+                            Log.d(Main.TAG, "sending keep-alive");
                         datagramSocket.send(packet);
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -188,11 +190,17 @@ public class GoProCamera implements ICamera {
                 public void onFailure(Call call, IOException e) {
                     if (BuildConfig.DEBUG)
                         Log.e(Main.TAG, "Can change gopro mode: " + e.getMessage());
+                    synchronized (gopro_ready) {
+                        gopro_ready.set(false);
+                    }
                 }
 
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
                     if (BuildConfig.DEBUG) Log.i(Main.TAG, "GoPro set to photo mode");
+                    synchronized (gopro_ready) {
+                        gopro_ready.set(true);
+                    }
                 }
             });
             keepAlive.set(true);
@@ -228,5 +236,10 @@ public class GoProCamera implements ICamera {
         keepAlive.set(false);
         keepAliveThread.interrupt();
         context.unregisterReceiver(networkReceiver);
+    }
+
+    @Override
+    public Type getCameraType() {
+        return Type.Main;
     }
 }

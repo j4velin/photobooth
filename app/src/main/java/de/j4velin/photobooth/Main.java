@@ -6,6 +6,8 @@ import android.graphics.Bitmap;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -16,6 +18,8 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
     private final List<ICamera> cameras = new ArrayList<>(2);
     private final List<IDisplay> displays = new ArrayList<>(1);
     private final List<ITrigger> triggers = new ArrayList<>(1);
+
+    private final Comparator<ICamera> cameraComparator = new ICamera.CameraComparator();
 
     private final static AtomicBoolean STARTED = new AtomicBoolean(false);
 
@@ -48,6 +52,7 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
 
     public void addCamera(final ICamera camera) {
         cameras.add(Objects.requireNonNull(camera, "camera must not be null"));
+        Collections.sort(cameras, cameraComparator);
         camera.addPhotoTakenCallback(this);
     }
 
@@ -79,9 +84,16 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
         for (IDisplay display : displays) {
             display.showWait();
         }
+        boolean mainCameraReady = false;
         for (ICamera camera : cameras) {
+            if (mainCameraReady && camera.getCameraType() == ICamera.Type.Backup) {
+                break;
+            }
             if (camera.cameraIsReady()) {
                 camera.takePhoto();
+                if (camera.getCameraType() == ICamera.Type.Main) {
+                    mainCameraReady = true;
+                }
             }
         }
     }
