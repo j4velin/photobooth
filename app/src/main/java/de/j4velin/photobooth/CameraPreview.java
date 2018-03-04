@@ -54,7 +54,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     private ImageView imageView;
     private Surface surface;
     private View progressbar;
-    private boolean camera_enabled = BuildConfig.DEBUG;
+    private boolean camera_enabled = true;
 
     private final List<ICamera.CameraCallback> cameraCallbacks = new ArrayList<>(1);
     private final Handler handler = new Handler();
