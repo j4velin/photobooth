@@ -2,8 +2,6 @@ package de.j4velin.photobooth;
 
 import android.app.Application;
 import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -50,11 +48,10 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
     }
 
     @Override
-    public void imageReady(Bitmap image) {
+    public void imageReady(final Bitmap image) {
         if (BuildConfig.DEBUG) Log.d(Main.TAG, "Image ready");
-        Drawable d = new BitmapDrawable(getResources(), image);
         for (IDisplay display : displays) {
-            display.displayImage(d);
+            display.displayImage(image);
         }
     }
 }

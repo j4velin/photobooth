@@ -1,6 +1,6 @@
 package de.j4velin.photobooth;
 
-import android.graphics.drawable.Drawable;
+import android.graphics.Bitmap;
 
 public interface IDisplay {
 
@@ -9,5 +9,5 @@ public interface IDisplay {
      *
      * @param image the new image to display
      */
-    void displayImage(Drawable image);
+    void displayImage(Bitmap image);
 }

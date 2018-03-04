@@ -11,6 +11,7 @@ import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.SurfaceTexture;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -320,7 +321,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     }
 
     @Override
-    public void addPhotoTakenCallback(CameraCallback callback) {
+    public void addPhotoTakenCallback(final CameraCallback callback) {
         cameraCallbacks.add(callback);
     }
 
@@ -330,8 +331,14 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     }
 
     @Override
-    public void displayImage(Drawable image) {
-        imageView.setImageDrawable(image);
+    public void displayImage(final Bitmap image) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(90);
+        Bitmap rotated = Bitmap.createBitmap(image, 0, 0, image.getWidth(), image.getHeight(),
+                matrix,
+                true);
+        Drawable drawable = new BitmapDrawable(getResources(), rotated);
+        imageView.setImageDrawable(drawable);
         imageView.setVisibility(View.VISIBLE);
         handler.postDelayed(new Runnable() {
             @Override
