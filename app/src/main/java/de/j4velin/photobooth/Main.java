@@ -76,6 +76,9 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
     @Override
     public void takePhoto() {
         if (BuildConfig.DEBUG) Log.d(Main.TAG, "Taking photo...");
+        for (IDisplay display : displays) {
+            display.showWait();
+        }
         for (ICamera camera : cameras) {
             if (camera.cameraIsReady()) {
                 camera.takePhoto();

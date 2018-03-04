@@ -53,6 +53,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     private TextureView cameraView;
     private ImageView imageView;
     private Surface surface;
+    private View progressbar;
     private boolean camera_enabled = BuildConfig.DEBUG;
 
     private final List<ICamera.CameraCallback> cameraCallbacks = new ArrayList<>(1);
@@ -63,6 +64,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
         super.onCreate(savedInstanceState);
         ((Main) getApplication()).start();
         setContentView(R.layout.activity_main);
+        progressbar = findViewById(R.id.progressBar);
     }
 
     @Override
@@ -351,6 +353,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
                 imageView.setImageDrawable(drawable);
                 imageView.setVisibility(View.VISIBLE);
                 imageView.setTag(tag);
+                progressbar.setVisibility(View.GONE);
             }
         });
         handler.postDelayed(new Runnable() {
@@ -361,5 +364,15 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
                 }
             }
         }, 5000);
+    }
+
+    @Override
+    public void showWait() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                progressbar.setVisibility(View.VISIBLE);
+            }
+        });
     }
 }

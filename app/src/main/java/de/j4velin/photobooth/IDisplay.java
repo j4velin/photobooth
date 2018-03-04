@@ -10,4 +10,9 @@ public interface IDisplay {
      * @param image the new image to display
      */
     void displayImage(Bitmap image);
+
+    /**
+     * Call to show a "please wait" dialog
+     */
+    void showWait();
 }
