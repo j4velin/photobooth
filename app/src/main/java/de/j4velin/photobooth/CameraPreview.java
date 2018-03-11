@@ -346,10 +346,8 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     public void displayImage(final Bitmap image) {
         Matrix matrix = new Matrix();
         matrix.postRotate(90);
-        Bitmap rotated = Bitmap.createBitmap(image, 0, 0, image.getWidth(),
-                image.getHeight(),
-                matrix,
-                true);
+        Bitmap rotated = Bitmap.createBitmap(image, 0, 0, image.getWidth(), image.getHeight(),
+                matrix, true);
         final Drawable drawable = new BitmapDrawable(getResources(), rotated);
         final long tag = System.currentTimeMillis(); // "reset" timer by assigning a new tag
         runOnUiThread(new Runnable() {

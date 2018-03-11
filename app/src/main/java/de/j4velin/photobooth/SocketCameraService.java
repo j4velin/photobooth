@@ -10,8 +10,8 @@ import android.util.Log;
 
 import java.io.BufferedWriter;
 import java.io.Closeable;
+import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -57,10 +57,7 @@ public class SocketCameraService extends Service implements ICamera {
                         Socket clientSocket = serverSocket.accept();
                         if (BuildConfig.DEBUG) Log.i(Main.TAG,
                                 "Socket connection established to " + clientSocket);
-                        InputStream in = clientSocket.getInputStream();
-                        BufferedWriter out = new BufferedWriter(
-                                new OutputStreamWriter(clientSocket.getOutputStream()));
-                        cameras.add(new ExternalCameraDevice(in, out));
+                        cameras.add(new ExternalCameraDevice(clientSocket));
                     }
                 } catch (IOException e) {
                     if (BuildConfig.DEBUG)
@@ -112,15 +109,21 @@ public class SocketCameraService extends Service implements ICamera {
     }
 
     private class ExternalCameraDevice implements Closeable {
-        private final InputStream in;
+        private final DataInputStream in;
         private final BufferedWriter out;
         private final Thread takePhotoThread = new Thread(new Runnable() {
             @Override
             public void run() {
+                if (BuildConfig.DEBUG) Log.d(Main.TAG,
+                        "Sending TAKE_PHOTO command over socket connection");
                 try {
                     out.write(SocketTriggerService.TAKE_PHOTO_COMMAND);
+                    out.newLine();
                     out.flush();
-                    Bitmap image = BitmapFactory.decodeStream(in);
+                    int length = in.readInt();
+                    byte[] message = new byte[length];
+                    in.readFully(message, 0, message.length);
+                    Bitmap image = BitmapFactory.decodeByteArray(message, 0, length);
                     for (CameraCallback cb : cameraCallbacks) {
                         cb.imageReady(image);
                     }
@@ -132,9 +135,10 @@ public class SocketCameraService extends Service implements ICamera {
             }
         });
 
-        private ExternalCameraDevice(final InputStream in, final BufferedWriter out) {
-            this.in = in;
-            this.out = out;
+        private ExternalCameraDevice(final Socket socket) throws IOException {
+            in = new DataInputStream(socket.getInputStream());
+            out = new BufferedWriter(
+                    new OutputStreamWriter(socket.getOutputStream()));
         }
 
         @Override
