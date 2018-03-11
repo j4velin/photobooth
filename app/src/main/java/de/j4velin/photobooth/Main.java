@@ -3,6 +3,7 @@ package de.j4velin.photobooth;
 import android.app.Application;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.support.constraint.BuildConfig;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -27,8 +28,11 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
         synchronized (STARTED) {
             if (!STARTED.getAndSet(true)) {
                 if (BuildConfig.DEBUG) Log.i(Main.TAG, "starting");
-                addCamera(new GoProCamera(getApplicationContext()));
-                startService(new Intent(getApplicationContext(), SocketService.class));
+                if (BuildConfig.FLAVOR.equalsIgnoreCase("gopro")) {
+                    addCamera(new GoProCamera(getApplicationContext()));
+                }
+                startService(new Intent(getApplicationContext(), SocketCameraService.class));
+                startService(new Intent(getApplicationContext(), SocketTriggerService.class));
             }
         }
     }

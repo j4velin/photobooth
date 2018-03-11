@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
-    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
         android:name=".Main"
@@ -26,10 +26,13 @@
         </activity>
 
         <service
-            android:name=".SocketService"
+            android:name=".SocketTriggerService"
             android:enabled="true"
-            android:exported="false">
-        </service>
+            android:exported="false"/>
+        <service
+            android:name=".SocketCameraService"
+            android:enabled="true"
+            android:exported="false"/>
     </application>
 
 </manifest>

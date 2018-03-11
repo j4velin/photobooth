@@ -2,6 +2,9 @@ package de.j4velin.photobooth;
 
 import android.graphics.Bitmap;
 
+/**
+ * An interface for all objects, which can display an image
+ */
 public interface IDisplay {
 
     /**

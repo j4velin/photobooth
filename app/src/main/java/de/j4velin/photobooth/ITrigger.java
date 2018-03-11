@@ -1,5 +1,8 @@
 package de.j4velin.photobooth;
 
+/**
+ * An interface which can trigger taking a photo
+ */
 public interface ITrigger {
 
     /**

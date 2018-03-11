@@ -16,6 +16,11 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    flavorDimensions 'mainCamera'
+    productFlavors {
+        gopro { dimension 'mainCamera' }
+        android { dimension 'mainCamera' }
+    }
 }
 
 dependencies {

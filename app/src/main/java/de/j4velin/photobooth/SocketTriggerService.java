@@ -11,10 +11,13 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class SocketService extends Service implements ITrigger {
+/**
+ * Server component for socket base triggers (for example a Raspberry Pi with a button)
+ */
+public class SocketTriggerService extends Service implements ITrigger {
 
     private final static int SOCKET_PORT = 5555;
-    private final static String TAKE_PHOTO_COMMAND = "TAKE_PHOTO";
+    final static String TAKE_PHOTO_COMMAND = "TAKE_PHOTO";
     private ServerSocket serverSocket;
 
     @Override

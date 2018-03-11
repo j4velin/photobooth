@@ -5,6 +5,9 @@ import android.graphics.Bitmap;
 
 import java.util.Comparator;
 
+/**
+ * Interface for all camera objects
+ */
 public interface ICamera {
 
     /**

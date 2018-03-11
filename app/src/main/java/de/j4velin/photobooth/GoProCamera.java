@@ -33,6 +33,9 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
+/**
+ * Class to take a photo with an external GoPro camera
+ */
 public class GoProCamera implements ICamera {
 
     private final static String GOPRO_IP = "10.5.5.9";
