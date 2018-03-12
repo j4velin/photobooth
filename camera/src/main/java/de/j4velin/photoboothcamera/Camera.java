@@ -18,6 +18,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -32,7 +33,7 @@ public class Camera extends Activity {
     private final static String TAG = "photobooth.camera";
 
     private DataOutputStream out;
-    private volatile boolean senderThreadKeepRunning = true;
+    private volatile boolean keepRunning = true;
     private byte[] bytesToSend;
 
     private final CameraUtil cameraUtil = new CameraUtil();
@@ -41,7 +42,7 @@ public class Camera extends Activity {
     private final Thread senderThread = new Thread(new Runnable() {
         @Override
         public void run() {
-            while (senderThreadKeepRunning) {
+            while (keepRunning) {
                 synchronized (PHOTO_READY_LOCK) {
                     try {
                         PHOTO_READY_LOCK.wait();
@@ -87,7 +88,7 @@ public class Camera extends Activity {
     protected void onPause() {
         super.onPause();
         cameraUtil.shutdown();
-        senderThreadKeepRunning = false;
+        keepRunning = false;
         synchronized (PHOTO_READY_LOCK) {
             PHOTO_READY_LOCK.notifyAll();
         }
@@ -136,36 +137,48 @@ public class Camera extends Activity {
             @Override
             public void run() {
                 try {
-                    WifiManager wm = (WifiManager) getApplicationContext()
-                            .getSystemService(Context.WIFI_SERVICE);
-                    DhcpInfo info = wm.getDhcpInfo();
-                    InetAddress gateway = InetAddress.getByAddress(
-                            BigInteger.valueOf(info.gateway).toByteArray());
+                    while (keepRunning) {
+                        WifiManager wm = (WifiManager) getApplicationContext()
+                                .getSystemService(Context.WIFI_SERVICE);
+                        DhcpInfo info = wm.getDhcpInfo();
+                        InetAddress gateway = InetAddress.getByAddress(
+                                BigInteger.valueOf(info.gateway).toByteArray());
 
-                    // TODO: remove
-                    gateway = InetAddress.getByName("192.168.178.37");
+                        // TODO: remove
+                        gateway = InetAddress.getByName("192.168.178.37");
 
-                    Socket socket = new Socket(gateway, Config.CAMERA_SOCKET_PORT);
-                    socket.setKeepAlive(true);
-                    out = new DataOutputStream(socket.getOutputStream());
-                    try {
-                        BufferedReader in = new BufferedReader(
-                                new InputStreamReader(socket.getInputStream()));
-                        String inputLine;
-                        while ((inputLine = in.readLine()) != null) {
-                            if (BuildConfig.DEBUG) Log.d(TAG,
-                                    "Line read over socket: " + inputLine);
-                            if (inputLine.equalsIgnoreCase(Const.TAKE_PHOTO_COMMAND)) {
-                                cameraUtil.takePhoto();
-                            } else if (BuildConfig.DEBUG) {
-                                Log.w(TAG, "Ignoring unknown command: " + inputLine);
+                        if (BuildConfig.DEBUG) Log.i(TAG,
+                                "Socket connect to " + gateway.getHostAddress());
+                        try {
+                            Socket socket = new Socket(gateway, Config.CAMERA_SOCKET_PORT);
+                            socket.setKeepAlive(true);
+                            out = new DataOutputStream(socket.getOutputStream());
+                            BufferedReader in = new BufferedReader(
+                                    new InputStreamReader(socket.getInputStream()));
+                            String inputLine;
+                            while ((inputLine = in.readLine()) != null) {
+                                if (BuildConfig.DEBUG) Log.d(TAG,
+                                        "Line read over socket: " + inputLine);
+                                if (inputLine.equalsIgnoreCase(Const.TAKE_PHOTO_COMMAND)) {
+                                    cameraUtil.takePhoto();
+                                } else if (BuildConfig.DEBUG) {
+                                    Log.w(TAG, "Ignoring unknown command: " + inputLine);
+                                }
                             }
+                        } catch (ConnectException ce) {
+                            if (BuildConfig.DEBUG) Log.e(TAG,
+                                    "Cant connect to socket: " + ce
+                                            .getMessage() + ", retry in 5 sec");
+                            try {
+                                Thread.sleep(Config.SOCKET_CONNECT_RETRY_SLEEP);
+                            } catch (InterruptedException ie) {
+                                // ignore
+                            }
+                        } catch (IOException e) {
+                            if (BuildConfig.DEBUG) Log.e(TAG,
+                                    "Socket connection failed: " + e.getMessage());
                         }
-                    } catch (IOException e) {
-                        if (BuildConfig.DEBUG) Log.e(TAG,
-                                "Socket connection failed: " + e.getMessage());
                     }
-                    if (BuildConfig.DEBUG) Log.i(TAG, "Socket connection closed");
                 } catch (Throwable t) {
                     t.printStackTrace();
                     finish();
