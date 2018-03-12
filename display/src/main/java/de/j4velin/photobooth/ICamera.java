@@ -53,6 +53,11 @@ public interface ICamera {
          * @param image the new photo
          */
         void imageReady(final Bitmap image);
+
+        /**
+         * Called when an error occurred while taking a photo
+         */
+        void error();
     }
 
     class CameraComparator implements Comparator<ICamera> {

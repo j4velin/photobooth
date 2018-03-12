@@ -18,4 +18,9 @@ public interface IDisplay {
      * Call to show a "please wait" dialog
      */
     void showWait();
+
+    /**
+     * Call to cancel the "please wait" dialog in case of an error
+     */
+    void abortShowWait();
 }

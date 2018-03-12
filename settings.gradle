@@ -1,1 +1,1 @@
-include ':display', ':camera'
+include ':display', ':camera', ':common'

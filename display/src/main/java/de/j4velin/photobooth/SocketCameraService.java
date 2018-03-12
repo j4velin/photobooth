@@ -18,12 +18,14 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
+import de.j4velin.photobooth.common.Config;
+import de.j4velin.photobooth.common.Const;
+
 /**
  * Server component for all socket base camera (for example an external Android device)
  */
 public class SocketCameraService extends Service implements ICamera {
 
-    private final static int SOCKET_PORT = 5556;
     private final List<ExternalCameraDevice> cameras = new ArrayList<>(1);
     private final List<CameraCallback> cameraCallbacks = new ArrayList<>(1);
     private ServerSocket serverSocket;
@@ -48,11 +50,13 @@ public class SocketCameraService extends Service implements ICamera {
     }
 
     private void start() {
+        if (BuildConfig.DEBUG) Log.i(Main.TAG,
+                "Starting camera socket on port " + Config.CAMERA_SOCKET_PORT);
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    serverSocket = new ServerSocket(SOCKET_PORT);
+                    serverSocket = new ServerSocket(Config.CAMERA_SOCKET_PORT);
                     while (!serverSocket.isClosed()) {
                         Socket clientSocket = serverSocket.accept();
                         if (BuildConfig.DEBUG) Log.i(Main.TAG,
@@ -86,6 +90,8 @@ public class SocketCameraService extends Service implements ICamera {
 
     @Override
     public void shutdownCamera(final Context context) {
+        if (BuildConfig.DEBUG) Log.i(Main.TAG,
+                "Shutdown SocketCameraService");
         for (ExternalCameraDevice c : cameras) {
             try {
                 c.close();
@@ -117,7 +123,7 @@ public class SocketCameraService extends Service implements ICamera {
                 if (BuildConfig.DEBUG) Log.d(Main.TAG,
                         "Sending TAKE_PHOTO command over socket connection");
                 try {
-                    out.write(SocketTriggerService.TAKE_PHOTO_COMMAND);
+                    out.write(Const.TAKE_PHOTO_COMMAND);
                     out.newLine();
                     out.flush();
                     int length = in.readInt();
@@ -129,7 +135,16 @@ public class SocketCameraService extends Service implements ICamera {
                     }
                 } catch (Exception e) {
                     if (BuildConfig.DEBUG) {
-                        Log.e(Main.TAG, "Can send take photo cmd: " + e.getMessage());
+                        Log.e(Main.TAG, "Can send take photo cmd: " + e.getClass()
+                                .getSimpleName() + " - " + e.getMessage());
+                    }
+                    for (CameraCallback cb : cameraCallbacks) {
+                        cb.error();
+                    }
+                    cameras.remove(ExternalCameraDevice.this);
+                    try {
+                        close();
+                    } catch (IOException e1) {
                     }
                 }
             }
@@ -143,6 +158,9 @@ public class SocketCameraService extends Service implements ICamera {
 
         @Override
         public void close() throws IOException {
+            if (BuildConfig.DEBUG) {
+                Log.d(Main.TAG, "Closing socket connection");
+            }
             try {
                 this.in.close();
             } catch (Exception e) {

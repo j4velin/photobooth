@@ -30,8 +30,9 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
                 if (BuildConfig.DEBUG) Log.i(Main.TAG, "starting");
                 if (BuildConfig.FLAVOR.equalsIgnoreCase("gopro")) {
                     addCamera(new GoProCamera(getApplicationContext()));
+                } else {
+                    startService(new Intent(getApplicationContext(), SocketCameraService.class));
                 }
-                startService(new Intent(getApplicationContext(), SocketCameraService.class));
                 startService(new Intent(getApplicationContext(), SocketTriggerService.class));
             }
         }
@@ -107,6 +108,14 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
         if (BuildConfig.DEBUG) Log.d(Main.TAG, "Image ready");
         for (IDisplay display : displays) {
             display.displayImage(image);
+        }
+    }
+
+    @Override
+    public void error() {
+        if (BuildConfig.DEBUG) Log.w(Main.TAG, "error while taking photo");
+        for (IDisplay display : displays) {
+            display.abortShowWait();
         }
     }
 }

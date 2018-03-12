@@ -11,13 +11,14 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import de.j4velin.photobooth.common.Config;
+import de.j4velin.photobooth.common.Const;
+
 /**
  * Server component for socket base triggers (for example a Raspberry Pi with a button)
  */
 public class SocketTriggerService extends Service implements ITrigger {
 
-    private final static int SOCKET_PORT = 5555;
-    final static String TAKE_PHOTO_COMMAND = "TAKE_PHOTO";
     private ServerSocket serverSocket;
 
     @Override
@@ -44,7 +45,7 @@ public class SocketTriggerService extends Service implements ITrigger {
             @Override
             public void run() {
                 try {
-                    serverSocket = new ServerSocket(SOCKET_PORT);
+                    serverSocket = new ServerSocket(Config.TRIGGER_SOCKET_PORT);
                     while (!serverSocket.isClosed()) {
                         Socket clientSocket = serverSocket.accept();
                         if (BuildConfig.DEBUG) Log.i(Main.TAG,
@@ -53,7 +54,7 @@ public class SocketTriggerService extends Service implements ITrigger {
                                 new InputStreamReader(clientSocket.getInputStream()));
                         String inputLine;
                         while ((inputLine = in.readLine()) != null) {
-                            if (inputLine.equalsIgnoreCase(TAKE_PHOTO_COMMAND)) {
+                            if (inputLine.equalsIgnoreCase(Const.TAKE_PHOTO_COMMAND)) {
                                 callback.takePhoto();
                             } else if (BuildConfig.DEBUG) {
                                 Log.w(Main.TAG,
