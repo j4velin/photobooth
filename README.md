@@ -5,3 +5,5 @@ Photobooth is an Android application, connected to an external button and an ext
 ## setup ##
 
 button -- Raspberry Pi ----> Android tablet <----> GoPro camera
+                          or
+button -- Raspberry Pi ----> Android tablet <----> Android camera
