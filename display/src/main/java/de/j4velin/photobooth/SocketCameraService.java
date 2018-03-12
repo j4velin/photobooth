@@ -61,7 +61,9 @@ public class SocketCameraService extends Service implements ICamera {
                         Socket clientSocket = serverSocket.accept();
                         if (BuildConfig.DEBUG) Log.i(Main.TAG,
                                 "Socket connection established to " + clientSocket);
-                        cameras.add(new ExternalCameraDevice(clientSocket));
+                        synchronized (cameras) {
+                            cameras.add(new ExternalCameraDevice(clientSocket));
+                        }
                     }
                 } catch (IOException e) {
                     if (BuildConfig.DEBUG)
@@ -73,8 +75,10 @@ public class SocketCameraService extends Service implements ICamera {
 
     @Override
     public void takePhoto() {
-        for (ExternalCameraDevice c : cameras) {
-            c.takePhotoThread.start();
+        synchronized (cameras) {
+            for (ExternalCameraDevice c : cameras) {
+                c.takePhotoThread.start();
+            }
         }
     }
 
@@ -92,14 +96,16 @@ public class SocketCameraService extends Service implements ICamera {
     public void shutdownCamera(final Context context) {
         if (BuildConfig.DEBUG) Log.i(Main.TAG,
                 "Shutdown SocketCameraService");
-        for (ExternalCameraDevice c : cameras) {
-            try {
-                c.close();
-            } catch (IOException e) {
-                if (BuildConfig.DEBUG) e.printStackTrace();
+        synchronized (cameras) {
+            for (ExternalCameraDevice c : cameras) {
+                try {
+                    c.close();
+                } catch (IOException e) {
+                    if (BuildConfig.DEBUG) e.printStackTrace();
+                }
             }
+            cameras.clear();
         }
-        cameras.clear();
         try {
             serverSocket.close();
         } catch (IOException e) {
@@ -141,7 +147,9 @@ public class SocketCameraService extends Service implements ICamera {
                     for (CameraCallback cb : cameraCallbacks) {
                         cb.error();
                     }
-                    cameras.remove(ExternalCameraDevice.this);
+                    synchronized (cameras) {
+                        cameras.remove(ExternalCameraDevice.this);
+                    }
                     try {
                         close();
                     } catch (IOException e1) {
