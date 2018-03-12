@@ -191,6 +191,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
                 imageView.setImageDrawable(drawable);
                 imageView.setVisibility(View.VISIBLE);
                 imageView.setTag(tag);
+                cameraView.setAlpha(1f);
                 progressbar.setVisibility(View.GONE);
             }
         });
@@ -209,6 +210,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                cameraView.setAlpha(0.5f);
                 progressbar.setVisibility(View.VISIBLE);
             }
         });
