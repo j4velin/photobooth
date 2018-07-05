@@ -12,6 +12,7 @@ import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.TextureView;
+import android.view.WindowManager;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -55,6 +56,9 @@ public class Camera extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+        lp.screenBrightness = 0f;
+        getWindow().setAttributes(lp);
         setContentView(R.layout.camera);
     }
 
