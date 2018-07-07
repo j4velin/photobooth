@@ -39,6 +39,7 @@ public class CameraUtil {
      * Call to shutdown the camera and all associated view and buffers
      */
     public void shutdown() {
+        if (BuildConfig.DEBUG) Log.d(TAG, "Camera shutdown");
         if (imageReader != null) {
             imageReader.close();
         }
@@ -74,30 +75,37 @@ public class CameraUtil {
     public void setup(final Activity a, final int lens,
                       final ImageReader.OnImageAvailableListener callback,
                       final TextureView cameraView) {
-        cameraView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width,
-                                                  int height) {
-                if (BuildConfig.DEBUG) Log.d(TAG, "Surface created");
-                setupCamera(a, lens, callback, new Surface(surface));
-            }
+        if (BuildConfig.DEBUG) Log.d(TAG, "Camera setup #1");
+        if (cameraView.getSurfaceTexture() != null) {
+            if (BuildConfig.DEBUG) Log.d(TAG, "Surface already created");
+            setupCamera(a, lens, callback, new Surface(cameraView.getSurfaceTexture()));
+        } else {
+            cameraView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+                public void onSurfaceTextureAvailable(SurfaceTexture surface, int width,
+                                                      int height) {
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Surface created");
+                    setupCamera(a, lens, callback, new Surface(surface));
+                }
 
-            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width,
-                                                    int height) {
-            }
+                public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width,
+                                                        int height) {
+                }
 
-            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-                if (BuildConfig.DEBUG) Log.d(TAG, "Surface destroyed");
-                shutdown();
-                return true;
-            }
+                public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+                    if (BuildConfig.DEBUG) Log.w(TAG, "Surface destroyed");
+                    shutdown();
+                    return true;
+                }
 
-            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-            }
-        });
+                public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+                }
+            });
+        }
     }
 
     private void setupCamera(Activity a, int lens, ImageReader.OnImageAvailableListener callback,
                              Surface surface) {
+        if (BuildConfig.DEBUG) Log.d(TAG, "Camera setup #2");
         try {
             CameraManager cm = (CameraManager) a.getSystemService(Context.CAMERA_SERVICE);
             String cameraId = null;
@@ -144,10 +152,11 @@ public class CameraUtil {
     private void openCamera(final CameraManager cm, final String cameraId,
                             final Surface surface) throws
             CameraAccessException {
+        if (BuildConfig.DEBUG) Log.d(TAG, "Camera setup #3 (openCamera)");
         cm.openCamera(cameraId, new CameraDevice.StateCallback() {
             @Override
             public void onOpened(final CameraDevice camera) {
-                if (BuildConfig.DEBUG) Log.d(TAG, "Camera connected");
+                if (BuildConfig.DEBUG) Log.d(TAG, "Camera setup #4 (cameraOpened)");
                 CameraUtil.this.camera = camera;
                 try {
                     camera.createCaptureSession(
@@ -157,7 +166,7 @@ public class CameraUtil {
                                 public void onConfigured(
                                         final CameraCaptureSession session) {
                                     if (BuildConfig.DEBUG) Log.d(TAG,
-                                            "Camera capture session configured");
+                                            "Camera setup #5 (captureSessionConfigured)");
                                     CameraUtil.this.session = session;
                                     try {
                                         CaptureRequest.Builder builder = camera

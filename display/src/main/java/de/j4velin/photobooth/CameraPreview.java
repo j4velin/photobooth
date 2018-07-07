@@ -20,6 +20,7 @@ import android.view.Display;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -32,11 +33,14 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     private final static int REQUEST_CODE_CAMERA_PERMISSION = 1;
     private final static boolean TRIGGER_ENABLED = true;
 
+    private final static int ERROR_TEXT_TIMEOUT_MS = 3000;
+
     private final CameraUtil cameraUtil = new CameraUtil();
 
     private TextureView cameraView;
     private ImageView imageView;
     private View progressbar;
+    private TextView countdown, errorView;
     private boolean camera_enabled = true;
 
     private final List<ICamera.CameraCallback> cameraCallbacks = new ArrayList<>(1);
@@ -48,6 +52,8 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
         ((Main) getApplication()).start();
         setContentView(R.layout.activity_main);
         progressbar = findViewById(R.id.progressBar);
+        countdown = findViewById(R.id.countdown);
+        errorView = findViewById(R.id.error);
     }
 
     @Override
@@ -217,12 +223,45 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     }
 
     @Override
-    public void abortShowWait() {
+    public void showCountdown() {
+        for (int i = Main.COUNTDOWN_SECONDS; i >= 0; i--) {
+            handler.postDelayed(new CountdownUpdater(i), (Main.COUNTDOWN_SECONDS - i) * 1000);
+        }
+    }
+
+    @Override
+    public void error() {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 progressbar.setVisibility(View.GONE);
+                errorView.setVisibility(View.VISIBLE);
             }
         });
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                errorView.setVisibility(View.GONE);
+            }
+        }, ERROR_TEXT_TIMEOUT_MS);
+    }
+
+    private class CountdownUpdater implements Runnable {
+        private final int value;
+
+        private CountdownUpdater(int value) {
+            this.value = value;
+        }
+
+        @Override
+        public void run() {
+            // runs in UI thread
+            countdown.setText(String.valueOf(value));
+            if (value == Main.COUNTDOWN_SECONDS) {
+                countdown.setVisibility(View.VISIBLE);
+            } else if (value == 0) {
+                countdown.setVisibility(View.GONE);
+            }
+        }
     }
 }

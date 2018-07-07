@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#000"
     android:keepScreenOn="true"
     tools:context="de.j4velin.photobooth.CameraPreview">
 
@@ -25,6 +26,32 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="center"
+        android:indeterminateTint="#fff"
         android:padding="25dp"
+        android:visibility="gone"/>
+
+    <TextView
+        android:id="@+id/error"
+        style="?android:attr/textAppearance"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:padding="25dp"
+        android:rotation="90"
+        android:text="@string/error"
+        android:textColor="#fff"
+        android:textSize="200sp"
+        android:visibility="gone"/>
+
+    <TextView
+        android:id="@+id/countdown"
+        style="?android:attr/textAppearance"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:padding="25dp"
+        android:rotation="90"
+        android:textColor="#fff"
+        android:textSize="500sp"
         android:visibility="gone"/>
 </FrameLayout>

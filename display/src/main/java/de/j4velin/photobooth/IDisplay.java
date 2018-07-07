@@ -20,7 +20,14 @@ public interface IDisplay {
     void showWait();
 
     /**
-     * Call to cancel the "please wait" dialog in case of an error
+     * Shows a countdown dialog
+     * <p>
+     * The countdown time is set in {@link Main#COUNTDOWN_SECONDS}
      */
-    void abortShowWait();
+    void showCountdown();
+
+    /**
+     * An error occurred. Cancels any dialog
+     */
+    void error();
 }
