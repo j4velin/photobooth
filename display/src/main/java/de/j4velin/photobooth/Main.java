@@ -8,10 +8,12 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Main extends Application implements ITrigger.TriggerCallback, ICamera.CameraCallback {
@@ -146,29 +148,34 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
     private final Runnable takePhoto = new Runnable() {
         @Override
         public void run() {
-            for (IDisplay display : displays) {
-                display.showCountdown();
-            }
             try {
-                Thread.sleep(COUNTDOWN_SECONDS * 1000);
-            } catch (InterruptedException e) {
-                // ignore
-            }
-            for (IDisplay display : displays) {
-                display.showWait();
-            }
-            boolean mainCameraReady = false;
-            watchdog.execute(watchdogTimer);
-            for (ICamera camera : cameras) {
-                if (mainCameraReady && camera.getCameraType() == ICamera.Type.Backup) {
-                    break;
+                for (IDisplay display : displays) {
+                    display.showCountdown();
                 }
-                if (camera.cameraIsReady()) {
-                    camera.takePhoto();
-                    if (camera.getCameraType() == ICamera.Type.Main) {
-                        mainCameraReady = true;
+                try {
+                    Thread.sleep(COUNTDOWN_SECONDS * 1000);
+                } catch (InterruptedException e) {
+                    // ignore
+                }
+                for (IDisplay display : displays) {
+                    display.showWait();
+                }
+                boolean mainCameraReady = false;
+                watchdog.execute(watchdogTimer);
+                for (ICamera camera : cameras) {
+                    if (mainCameraReady && camera.getCameraType() == ICamera.Type.Backup) {
+                        break;
+                    }
+                    if (camera.cameraIsReady()) {
+                        camera.takePhoto();
+                        if (camera.getCameraType() == ICamera.Type.Main) {
+                            mainCameraReady = true;
+                        }
                     }
                 }
+            } catch (RejectedExecutionException | ConcurrentModificationException e) {
+                // might be thrown when shutting down while trying to take a photo
+                // -> can be ignored as we're shutting down anyway
             }
         }
     };
