@@ -24,6 +24,8 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import de.j4velin.photobooth.common.CameraUtil;
 import de.j4velin.photobooth.common.Config;
@@ -34,13 +36,12 @@ public class Camera extends Activity {
     private final static int REQUEST_CODE_CAMERA_PERMISSION = 1;
     private final static String TAG = "photobooth.camera";
 
+    private final CameraUtil cameraUtil = new CameraUtil();
+
     private volatile DataOutputStream out;
     private volatile boolean keepRunning = true;
-    private volatile byte[] bytesToSend;
 
-    private final CameraUtil cameraUtil = new CameraUtil();
-    private final Object PHOTO_READY_LOCK = new Object();
-
+    private ExecutorService imageSender;
     private TextureView cameraView;
 
     @Override
@@ -58,6 +59,7 @@ public class Camera extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        imageSender = Executors.newSingleThreadExecutor();
         keepRunning = true;
         if (checkSelfPermission(
                 Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -72,10 +74,8 @@ public class Camera extends Activity {
     protected void onPause() {
         super.onPause();
         cameraUtil.shutdown();
+        imageSender.shutdown();
         keepRunning = false;
-        synchronized (PHOTO_READY_LOCK) {
-            PHOTO_READY_LOCK.notifyAll();
-        }
     }
 
     @Override
@@ -99,12 +99,10 @@ public class Camera extends Activity {
                             if (image != null) {
                                 if (BuildConfig.DEBUG) Log.d(TAG, "Image available");
                                 ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-                                bytesToSend = new byte[buffer.remaining()];
+                                byte[] bytesToSend = new byte[buffer.remaining()];
                                 buffer.get(bytesToSend);
                                 image.close();
-                                synchronized (PHOTO_READY_LOCK) {
-                                    PHOTO_READY_LOCK.notifyAll();
-                                }
+                                imageSender.execute(new ImageSender(bytesToSend, out));
                             }
                         } catch (Throwable t) {
                             if (BuildConfig.DEBUG) Log.e(TAG,
@@ -112,10 +110,30 @@ public class Camera extends Activity {
                         }
                     }
                 }, cameraView);
-        new Thread(new ImageSender()).start();
         new Thread(new WifiListener()).start();
     }
 
+    private static class ImageSender implements Runnable {
+        private final byte[] bytesToSend;
+        private final DataOutputStream out;
+
+        private ImageSender(byte[] bytesToSend, DataOutputStream out) {
+            this.bytesToSend = bytesToSend;
+            this.out = out;
+        }
+
+        @Override
+        public void run() {
+            try {
+                out.writeInt(bytesToSend.length);
+                out.write(bytesToSend);
+                out.flush();
+            } catch (IOException e) {
+                if (BuildConfig.DEBUG) Log.e(TAG,
+                        "Cant send result image: " + e.getMessage());
+            }
+        }
+    }
 
     private class WifiListener implements Runnable {
         @Override
@@ -136,9 +154,7 @@ public class Camera extends Activity {
                     try {
                         Socket socket = new Socket(gateway, Config.CAMERA_SOCKET_PORT);
                         socket.setKeepAlive(true);
-                        synchronized (PHOTO_READY_LOCK) {
-                            out = new DataOutputStream(socket.getOutputStream());
-                        }
+                        out = new DataOutputStream(socket.getOutputStream());
                         BufferedReader in = new BufferedReader(
                                 new InputStreamReader(socket.getInputStream()));
                         String inputLine;
@@ -172,33 +188,6 @@ public class Camera extends Activity {
                 t.printStackTrace();
                 finish();
             }
-        }
-    }
-
-    private class ImageSender implements Runnable {
-        @Override
-        public void run() {
-            while (keepRunning) {
-                synchronized (PHOTO_READY_LOCK) {
-                    try {
-                        PHOTO_READY_LOCK.wait();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    if (bytesToSend != null) {
-                        try {
-                            out.writeInt(bytesToSend.length);
-                            out.write(bytesToSend);
-                            out.flush();
-                            bytesToSend = null;
-                        } catch (IOException e) {
-                            if (BuildConfig.DEBUG) Log.e(TAG,
-                                    "Cant send result image: " + e.getMessage());
-                        }
-                    }
-                }
-            }
-            if (BuildConfig.DEBUG) Log.i(TAG, "senderThread exit");
         }
     }
 }
