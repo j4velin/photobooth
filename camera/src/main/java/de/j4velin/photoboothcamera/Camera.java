@@ -7,25 +7,31 @@ import android.content.pm.PackageManager;
 import android.hardware.camera2.CameraCharacteristics;
 import android.media.Image;
 import android.media.ImageReader;
-import android.net.DhcpInfo;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.math.BigInteger;
-import java.net.ConnectException;
-import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 
 import de.j4velin.photobooth.common.CameraUtil;
 import de.j4velin.photobooth.common.Config;
@@ -33,16 +39,17 @@ import de.j4velin.photobooth.common.Const;
 
 public class Camera extends Activity {
 
-    private final static int REQUEST_CODE_CAMERA_PERMISSION = 1;
+    private final static int REQUEST_CODE_PERMISSION = 1;
+
     private final static String TAG = "photobooth.camera";
+    private final static AtomicInteger imageCounter = new AtomicInteger(0);
+    private File saveImagesFolder;
 
     private final CameraUtil cameraUtil = new CameraUtil();
 
-    private volatile DataOutputStream out;
-    private volatile boolean keepRunning = true;
-
     private ExecutorService imageSender;
     private TextureView cameraView;
+    private volatile WifiListener wifiListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,11 +67,12 @@ public class Camera extends Activity {
     protected void onResume() {
         super.onResume();
         imageSender = Executors.newSingleThreadExecutor();
-        keepRunning = true;
         if (checkSelfPermission(
-                Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.CAMERA},
-                    REQUEST_CODE_CAMERA_PERMISSION);
+                Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED || checkSelfPermission(
+                Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                    new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    REQUEST_CODE_PERMISSION);
         } else {
             setup();
         }
@@ -75,21 +83,34 @@ public class Camera extends Activity {
         super.onPause();
         cameraUtil.shutdown();
         imageSender.shutdown();
-        keepRunning = false;
+        wifiListener.keepRunning = false;
+        wifiListener = null;
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions,
                                            int[] grantResults) {
-        if (requestCode == REQUEST_CODE_CAMERA_PERMISSION && grantResults.length > 0
-                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        if (checkSelfPermission(
+                Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(
+                Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
             setup();
-        } else {
+        } else if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_DENIED) {
             finish();
         }
     }
 
     private void setup() {
+        saveImagesFolder = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DCIM).getAbsolutePath() + "/photobooth/");
+        if (!saveImagesFolder.mkdirs()) {
+            saveImagesFolder = getExternalFilesDir(Environment.DIRECTORY_DCIM);
+        }
+        for (int i = 0; i < Integer.MAX_VALUE; i++) {
+            if (!new File(saveImagesFolder, i + ".jpg").exists()) {
+                imageCounter.set(i);
+                break;
+            }
+        }
         cameraUtil.setup(this, CameraCharacteristics.LENS_FACING_BACK,
                 new ImageReader.OnImageAvailableListener() {
                     @Override
@@ -102,7 +123,11 @@ public class Camera extends Activity {
                                 byte[] bytesToSend = new byte[buffer.remaining()];
                                 buffer.get(bytesToSend);
                                 image.close();
-                                imageSender.execute(new ImageSender(bytesToSend, out));
+                                if (wifiListener != null) {
+                                    imageSender.execute(
+                                            new ImageSender(bytesToSend, wifiListener.out));
+                                }
+                                saveFile(bytesToSend);
                             }
                         } catch (Throwable t) {
                             if (BuildConfig.DEBUG) Log.e(TAG,
@@ -110,7 +135,25 @@ public class Camera extends Activity {
                         }
                     }
                 }, cameraView);
-        new Thread(new WifiListener()).start();
+        wifiListener = new WifiListener();
+        new Thread(wifiListener).start();
+    }
+
+    private void saveFile(byte[] data) {
+        File f = new File(saveImagesFolder, imageCounter.getAndIncrement() + ".jpg");
+        try {
+            f.createNewFile();
+            try (FileOutputStream os = new FileOutputStream(f)) {
+                os.write(data);
+            }
+        } catch (Throwable t) {
+            showToast("Saving file failed: " + t.getMessage());
+            if (BuildConfig.DEBUG) {
+                Log.e(TAG,
+                        "Saving file failed: " + t.getMessage());
+                t.printStackTrace();
+            }
+        }
     }
 
     private static class ImageSender implements Runnable {
@@ -128,46 +171,102 @@ public class Camera extends Activity {
                 out.writeInt(bytesToSend.length);
                 out.write(bytesToSend);
                 out.flush();
-            } catch (IOException e) {
+            } catch (Throwable e) {
                 if (BuildConfig.DEBUG) Log.e(TAG,
                         "Cant send result image: " + e.getMessage());
             }
         }
     }
 
+    private static Optional<String> getDisplayIp(final String ipPrefix) {
+        String[] ips = new String[255];
+        for (int i = 1; i < 255; i++) {
+            ips[i] = ipPrefix + (i - 1);
+        }
+
+        // TODO: change predicate to lambda expression when updating to 1.8
+        return Arrays.stream(ips).parallel().filter(new Predicate<String>() {
+            @Override
+            public boolean test(String s) {
+                try {
+                    Socket socket = new Socket();
+                    socket.connect(
+                            new InetSocketAddress(s, Config.CAMERA_SOCKET_PORT),
+                            1000);
+                    socket.close();
+                    return true;
+                } catch (Exception ex) {
+                    return false;
+                }
+            }
+        }).findAny();
+    }
+
+    private void showToast(final String msg) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(Camera.this, msg, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
     private class WifiListener implements Runnable {
+        private boolean keepRunning = true;
+        private DataOutputStream out;
+
         @Override
         public void run() {
             try {
                 while (keepRunning) {
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Try to find IP of display device");
                     WifiManager wm = (WifiManager) getApplicationContext()
                             .getSystemService(Context.WIFI_SERVICE);
-                    DhcpInfo info = wm.getDhcpInfo();
-                    InetAddress gateway = InetAddress.getByAddress(
-                            BigInteger.valueOf(info.gateway).toByteArray());
+                    WifiInfo wi = wm.getConnectionInfo();
+                    int ip = wi.getIpAddress();
+                    String ipPrefix = String.format("%d.%d.%d.", (ip & 0xff), (ip >> 8 & 0xff),
+                            (ip >> 16 & 0xff));
 
-                    // TODO: remove
-                    gateway = InetAddress.getByName("192.168.178.37");
+                    Optional<String> displayIp = getDisplayIp(ipPrefix);
+                    if (!displayIp.isPresent()) {
+                        showToast(
+                                "Could not find any device with open port " + Config.CAMERA_SOCKET_PORT
+                                        + " in range " + ipPrefix + "* - try again in 10 sec...");
+                        try {
+                            Thread.sleep(Config.SOCKET_CONNECT_RETRY_SLEEP);
+                        } catch (InterruptedException ie) {
+                            // ignore
+                        }
+                        continue;
+                    }
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Connecting to " + displayIp.get());
+                    showToast("Connecting to " + displayIp.get());
 
-                    if (BuildConfig.DEBUG) Log.i(TAG,
-                            "Socket connect to " + gateway.getHostAddress());
-                    try {
-                        Socket socket = new Socket(gateway, Config.CAMERA_SOCKET_PORT);
+                    try (Socket socket = new Socket(displayIp.get(), Config.CAMERA_SOCKET_PORT)) {
                         socket.setKeepAlive(true);
                         out = new DataOutputStream(socket.getOutputStream());
                         BufferedReader in = new BufferedReader(
-                                new InputStreamReader(socket.getInputStream()));
+                                new InputStreamReader(socket.getInputStream(), "UTF-8"));
                         String inputLine;
                         while (keepRunning && (inputLine = in.readLine()) != null) {
                             if (BuildConfig.DEBUG) Log.d(TAG,
                                     "Line read over socket: " + inputLine);
-                            if (inputLine.equalsIgnoreCase(Const.TAKE_PHOTO_COMMAND)) {
+                            if (!keepRunning) {
+
+                            } else if (inputLine.equalsIgnoreCase(
+                                    Const.COMMAND_TAKE_PHOTO)) {
                                 cameraUtil.takePhoto();
+                            } else if (inputLine.equalsIgnoreCase(Const.COMMAND_PING)) {
+                                out.writeUTF(Const.COMMAND_PONG);
+                                out.flush();
                             } else if (BuildConfig.DEBUG) {
                                 Log.w(TAG, "Ignoring unknown command: " + inputLine);
                             }
                         }
-                    } catch (ConnectException ce) {
+                        if (BuildConfig.DEBUG) Log.i(TAG, "Socket connection closed");
+                        out = null;
+                    } catch (IOException ce) {
+                        showToast("Can not connect to display: " + ce.getMessage());
                         if (BuildConfig.DEBUG) Log.e(TAG,
                                 "Cant connect to socket: " + ce
                                         .getMessage() + ", retry in 5 sec");
@@ -176,16 +275,15 @@ public class Camera extends Activity {
                         } catch (InterruptedException ie) {
                             // ignore
                         }
-                    } catch (IOException e) {
-                        if (BuildConfig.DEBUG) Log.e(TAG,
-                                "Socket connection failed: " + e.getMessage());
                     }
                 }
                 if (BuildConfig.DEBUG) Log.i(TAG, "connectThread exit");
             } catch (Throwable t) {
-                if (BuildConfig.DEBUG) Log.e(TAG,
-                        t.getClass().getSimpleName() + ": " + t.getMessage());
-                t.printStackTrace();
+                if (BuildConfig.DEBUG) {
+                    Log.e(TAG,
+                            t.getClass().getSimpleName() + ": " + t.getMessage());
+                    t.printStackTrace();
+                }
                 finish();
             }
         }
