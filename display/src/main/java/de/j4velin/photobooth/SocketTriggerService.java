@@ -74,6 +74,16 @@ public class SocketTriggerService extends Service implements ITrigger {
                                 }
                             }
                             if (BuildConfig.DEBUG) Log.i(Main.TAG, "Socket connection closed");
+
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(SocketTriggerService.this,
+                                            "Trigger disconnected",
+                                            Toast.LENGTH_SHORT)
+                                            .show();
+                                }
+                            });
                         } catch (final Throwable t) {
                             if (BuildConfig.DEBUG) {
                                 Log.e(Main.TAG,

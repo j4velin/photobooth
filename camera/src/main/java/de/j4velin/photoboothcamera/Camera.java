@@ -219,7 +219,6 @@ public class Camera extends Activity {
         public void run() {
             try {
                 while (keepRunning) {
-                    if (BuildConfig.DEBUG) Log.d(TAG, "Try to find IP of display device");
                     WifiManager wm = (WifiManager) getApplicationContext()
                             .getSystemService(Context.WIFI_SERVICE);
                     WifiInfo wi = wm.getConnectionInfo();
@@ -227,11 +226,17 @@ public class Camera extends Activity {
                     String ipPrefix = String.format("%d.%d.%d.", (ip & 0xff), (ip >> 8 & 0xff),
                             (ip >> 16 & 0xff));
 
+                    if (ipPrefix.equals("0.0.0.")) {
+                        ipPrefix = "192.168.43.";
+                    }
+                    if (BuildConfig.DEBUG) Log.d(TAG,
+                            "Try to find IP of display device, prefix=" + ipPrefix);
+
                     Optional<String> displayIp = getDisplayIp(ipPrefix);
                     if (!displayIp.isPresent()) {
                         showToast(
                                 "Could not find any device with open port " + Config.CAMERA_SOCKET_PORT
-                                        + " in range " + ipPrefix + "* - try again in 10 sec...");
+                                        + " in range " + ipPrefix + "* - try again in " + (Config.SOCKET_CONNECT_RETRY_SLEEP / 1000) + " sec...");
                         try {
                             Thread.sleep(Config.SOCKET_CONNECT_RETRY_SLEEP);
                         } catch (InterruptedException ie) {
