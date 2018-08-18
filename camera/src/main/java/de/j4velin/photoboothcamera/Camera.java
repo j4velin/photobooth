@@ -249,6 +249,7 @@ public class Camera extends Activity {
 
                     try (Socket socket = new Socket(displayIp.get(), Config.CAMERA_SOCKET_PORT)) {
                         socket.setKeepAlive(true);
+                        socket.setTcpNoDelay(true);
                         out = new DataOutputStream(socket.getOutputStream());
                         BufferedReader in = new BufferedReader(
                                 new InputStreamReader(socket.getInputStream(), "UTF-8"));

@@ -64,6 +64,7 @@ public class SocketCameraService extends Service implements ICamera {
                     while (!serverSocket.isClosed()) {
                         try {
                             final Socket clientSocket = serverSocket.accept();
+                            clientSocket.setTcpNoDelay(true);
                             if (BuildConfig.DEBUG) Log.i(Main.TAG,
                                     "Socket connection established to " + clientSocket);
                             ExternalCameraDevice camera = new ExternalCameraDevice(clientSocket);

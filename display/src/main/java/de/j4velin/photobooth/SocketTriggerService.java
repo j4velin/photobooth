@@ -62,6 +62,7 @@ public class SocketTriggerService extends Service implements ITrigger {
                                             .show();
                                 }
                             });
+                            clientSocket.setTcpNoDelay(true);
                             BufferedReader in = new BufferedReader(
                                     new InputStreamReader(clientSocket.getInputStream()));
                             String inputLine;
