@@ -51,6 +51,8 @@
         android:gravity="center"
         android:padding="25dp"
         android:rotation="90"
+        android:shadowColor="#000"
+        android:shadowRadius="50"
         android:textColor="#fff"
         android:textSize="500sp"
         android:visibility="gone"/>
