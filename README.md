@@ -9,3 +9,15 @@ button -- Raspberry Pi ----> Android tablet <----> GoPro camera
                           or
                           
 button -- Raspberry Pi ----> Android tablet <----> Android camera
+
+## photos ##
+
+
+<table sytle="border: 0px;">
+<tr>
+<td><img width="200px" src="photos/trigger.jpg" /></td>
+<td><img width="200px" src="photos/box_tablet.jpg" /></td>
+<td><img width="200px" src="photos/power_supply.jpg" /></td>
+<td><img width="200px" src="photos/painted.jpg" /></td>
+</tr>
+</table>
