@@ -20,7 +20,6 @@ import android.widget.Toast;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
@@ -30,7 +29,6 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 import de.j4velin.photobooth.common.CameraUtil;
@@ -40,16 +38,14 @@ import de.j4velin.photobooth.common.Const;
 public class Camera extends Activity {
 
     private final static int REQUEST_CODE_PERMISSION = 1;
-
     private final static String TAG = "photobooth.camera";
-    private final static AtomicInteger imageCounter = new AtomicInteger(0);
-    private File saveImagesFolder;
 
     private final CameraUtil cameraUtil = new CameraUtil();
 
     private ExecutorService imageSender;
     private TextureView cameraView;
     private volatile WifiListener wifiListener;
+    private File saveImagesFolder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,12 +101,6 @@ public class Camera extends Activity {
         if (!saveImagesFolder.mkdirs()) {
             saveImagesFolder = getExternalFilesDir(Environment.DIRECTORY_DCIM);
         }
-        for (int i = 0; i < Integer.MAX_VALUE; i++) {
-            if (!new File(saveImagesFolder, i + ".jpg").exists()) {
-                imageCounter.set(i);
-                break;
-            }
-        }
         cameraUtil.setup(this, CameraCharacteristics.LENS_FACING_BACK,
                 new ImageReader.OnImageAvailableListener() {
                     @Override
@@ -127,7 +117,16 @@ public class Camera extends Activity {
                                     imageSender.execute(
                                             new ImageSender(bytesToSend, wifiListener.out));
                                 }
-                                saveFile(bytesToSend);
+                                try {
+                                    cameraUtil.saveFile(saveImagesFolder, bytesToSend);
+                                } catch (Throwable t) {
+                                    showToast("Saving image failed: " + t.getMessage());
+                                    if (BuildConfig.DEBUG) {
+                                        Log.e(TAG,
+                                                "Saving file failed: " + t.getMessage());
+                                        t.printStackTrace();
+                                    }
+                                }
                             }
                         } catch (Throwable t) {
                             if (BuildConfig.DEBUG) Log.e(TAG,
@@ -139,22 +138,6 @@ public class Camera extends Activity {
         new Thread(wifiListener).start();
     }
 
-    private void saveFile(byte[] data) {
-        File f = new File(saveImagesFolder, imageCounter.getAndIncrement() + ".jpg");
-        try {
-            f.createNewFile();
-            try (FileOutputStream os = new FileOutputStream(f)) {
-                os.write(data);
-            }
-        } catch (Throwable t) {
-            showToast("Saving file failed: " + t.getMessage());
-            if (BuildConfig.DEBUG) {
-                Log.e(TAG,
-                        "Saving file failed: " + t.getMessage());
-                t.printStackTrace();
-            }
-        }
-    }
 
     private static class ImageSender implements Runnable {
         private final byte[] bytesToSend;

@@ -20,8 +20,12 @@ import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Utility class to simplify handling the camera2 API
@@ -29,6 +33,7 @@ import java.util.Objects;
 public class CameraUtil {
 
     private final static String TAG = "photobooth.camerautil";
+    private final static AtomicInteger imageCounter = new AtomicInteger(0);
 
     private ImageReader imageReader;
     private CameraDevice camera;
@@ -233,6 +238,25 @@ public class CameraUtil {
             }, handler);
         } catch (CameraAccessException e) {
             if (BuildConfig.DEBUG) Log.e(TAG, "CameraAccessException: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Saves an image to local storage
+     *
+     * @param saveImagesFolder the folder to save the image to
+     * @param data             the image data to save
+     * @throws IOException
+     */
+    public void saveFile(File saveImagesFolder, byte[] data) throws IOException {
+        File f;
+        do {
+            f = new File(saveImagesFolder, imageCounter.getAndIncrement() + ".jpg");
+        } while (f.exists());
+
+        f.createNewFile();
+        try (FileOutputStream os = new FileOutputStream(f)) {
+            os.write(data);
         }
     }
 }

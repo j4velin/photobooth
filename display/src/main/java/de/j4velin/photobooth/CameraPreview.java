@@ -14,6 +14,7 @@ import android.hardware.camera2.CameraCharacteristics;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Display;
@@ -21,7 +22,9 @@ import android.view.TextureView;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +45,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     private View progressbar;
     private TextView countdown, errorView;
     private boolean camera_enabled = true;
+    private File saveImagesFolder;
 
     private final List<ICamera.CameraCallback> cameraCallbacks = new ArrayList<>(1);
     private final Handler handler = new Handler();
@@ -82,6 +86,11 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
     }
 
     private void setupCamera() {
+        saveImagesFolder = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DCIM).getAbsolutePath() + "/photobooth/");
+        if (!saveImagesFolder.mkdirs()) {
+            saveImagesFolder = getExternalFilesDir(Environment.DIRECTORY_DCIM);
+        }
         cameraView = findViewById(R.id.cameraview);
         imageView = findViewById(R.id.imageview);
         Display display = getWindowManager().getDefaultDisplay();
@@ -102,6 +111,24 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
                             ByteBuffer buffer = image.getPlanes()[0].getBuffer();
                             byte[] bytes = new byte[buffer.remaining()];
                             buffer.get(bytes);
+                            try {
+                                cameraUtil.saveFile(saveImagesFolder, bytes);
+                            } catch (final Throwable t) {
+                                handler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Toast.makeText(CameraPreview.this,
+                                                "Saving image failed: " + t.getMessage(),
+                                                Toast.LENGTH_SHORT)
+                                                .show();
+                                    }
+                                });
+                                if (BuildConfig.DEBUG) {
+                                    Log.e(Main.TAG,
+                                            "Saving file failed: " + t.getMessage());
+                                    t.printStackTrace();
+                                }
+                            }
                             Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length,
                                     null);
                             image.close();
