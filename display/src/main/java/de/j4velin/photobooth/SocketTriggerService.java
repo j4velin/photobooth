@@ -126,6 +126,7 @@ public class SocketTriggerService extends Service implements ITrigger {
             if (BuildConfig.DEBUG)
                 e.printStackTrace();
         }
+        ((Main) getApplication()).updateTriggerConnectionState(false);
         stopSelf();
     }
 }

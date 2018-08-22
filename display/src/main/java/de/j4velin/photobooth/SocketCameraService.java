@@ -95,7 +95,7 @@ public class SocketCameraService extends Service implements ICamera {
                                 @Override
                                 public void run() {
                                     Toast.makeText(SocketCameraService.this,
-                                            "Camera connected " + clientSocket.getLocalAddress(),
+                                            "Camera connected",
                                             Toast.LENGTH_SHORT)
                                             .show();
                                 }
@@ -151,7 +151,9 @@ public class SocketCameraService extends Service implements ICamera {
             if (BuildConfig.DEBUG)
                 e.printStackTrace();
         }
-        ((Main) getApplication()).removeCamera(this);
+        Main main = (Main) getApplication();
+        main.removeCamera(this);
+        main.updateExtCameraConnectionState(false);
         stopSelf();
     }
 
