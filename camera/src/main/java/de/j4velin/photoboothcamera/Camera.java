@@ -40,7 +40,7 @@ public class Camera extends Activity {
 
     private final static int REQUEST_CODE_PERMISSION = 1;
     private final static String TAG = "photobooth.camera";
-    private final static String DEFAULT_DISPLAY_IP = "192.168.178.37";
+    private final static String[] DEFAULT_DISPLAY_IPS = new String[]{"192.168.178.37", "192.168.43.219"};
     private final static String DEFAULT_HOTSPOT_IP_PREFIX = "192.168.43.";
 
     private final CameraUtil cameraUtil = new CameraUtil();
@@ -178,10 +178,6 @@ public class Camera extends Activity {
     }
 
     private static Optional<String> getDisplayIp(final String ipPrefix) {
-        if (DEFAULT_DISPLAY_IP != null && testIp(DEFAULT_DISPLAY_IP)) {
-            return Optional.of(DEFAULT_DISPLAY_IP);
-        }
-
         String[] ips = new String[255];
         for (int i = 1; i < 255; i++) {
             ips[i] = ipPrefix + (i - 1);
@@ -227,10 +223,14 @@ public class Camera extends Activity {
         public void run() {
             try {
                 while (keepRunning) {
-                    Optional<String> displayIp;
-                    if (DEFAULT_DISPLAY_IP != null && testIp(DEFAULT_DISPLAY_IP)) {
-                        displayIp = Optional.of(DEFAULT_DISPLAY_IP);
-                    } else {
+                    Optional<String> displayIp = Optional.empty();
+                    for (String ip : DEFAULT_DISPLAY_IPS) {
+                        if (testIp(ip)) {
+                            displayIp = Optional.of(ip);
+                        }
+                    }
+
+                    if (!displayIp.isPresent()) {
                         WifiManager wm = (WifiManager) getApplicationContext()
                                 .getSystemService(Context.WIFI_SERVICE);
                         WifiInfo wi = wm.getConnectionInfo();
