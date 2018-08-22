@@ -169,6 +169,9 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
         @Override
         public void run() {
             try {
+                for (ICamera camera : cameras) {
+                    camera.preparePhoto();
+                }
                 for (IDisplay display : displays) {
                     display.showCountdown();
                 }

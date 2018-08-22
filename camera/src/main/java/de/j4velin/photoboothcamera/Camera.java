@@ -121,6 +121,7 @@ public class Camera extends Activity {
                 new ImageReader.OnImageAvailableListener() {
                     @Override
                     public void onImageAvailable(final ImageReader imageReader) {
+                        cameraUtil.stopPreview();
                         try {
                             Image image = imageReader.acquireLatestImage();
                             if (image != null) {
@@ -149,7 +150,7 @@ public class Camera extends Activity {
                                     "Capture failed: " + t.getMessage());
                         }
                     }
-                }, cameraView);
+                }, cameraView, false);
         wifiListener = new WifiListener();
         new Thread(wifiListener).start();
     }
@@ -275,6 +276,9 @@ public class Camera extends Activity {
                             } else if (inputLine.equalsIgnoreCase(
                                     Const.COMMAND_TAKE_PHOTO)) {
                                 cameraUtil.takePhoto();
+                            } else if (inputLine.equalsIgnoreCase(
+                                    Const.COMMAND_PREPARE_PHOTO)) {
+                                cameraUtil.startPreview();
                             } else if (inputLine.equalsIgnoreCase(Const.COMMAND_PING)) {
                                 out.writeUTF(Const.COMMAND_PONG);
                                 out.flush();

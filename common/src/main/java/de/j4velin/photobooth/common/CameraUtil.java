@@ -40,6 +40,8 @@ public class CameraUtil {
     private CameraCaptureSession session;
     private final Handler handler = new Handler();
 
+    private Surface surface;
+
     /**
      * Call to shutdown the camera and all associated view and buffers
      */
@@ -70,26 +72,28 @@ public class CameraUtil {
     /**
      * Call to setup the camera
      *
-     * @param a          the calling activity
-     * @param lens       the camera lens to use, must be one of
-     *                   {@link CameraCharacteristics#LENS_FACING_BACK},
-     *                   {@link CameraCharacteristics#LENS_FACING_FRONT}
-     * @param callback   the image available callback
-     * @param cameraView the preview view
+     * @param a            the calling activity
+     * @param lens         the camera lens to use, must be one of
+     *                     {@link CameraCharacteristics#LENS_FACING_BACK},
+     *                     {@link CameraCharacteristics#LENS_FACING_FRONT}
+     * @param callback     the image available callback
+     * @param cameraView   the preview view
+     * @param startPreview true, to start the camera preview once the camera is ready
      */
     public void setup(final Activity a, final int lens,
                       final ImageReader.OnImageAvailableListener callback,
-                      final TextureView cameraView) {
+                      final TextureView cameraView, final boolean startPreview) {
         if (BuildConfig.DEBUG) Log.d(TAG, "Camera setup #1");
         if (cameraView.getSurfaceTexture() != null) {
             if (BuildConfig.DEBUG) Log.d(TAG, "Surface already created");
-            setupCamera(a, lens, callback, new Surface(cameraView.getSurfaceTexture()));
+            setupCamera(a, lens, callback, new Surface(cameraView.getSurfaceTexture()),
+                    startPreview);
         } else {
             cameraView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                 public void onSurfaceTextureAvailable(SurfaceTexture surface, int width,
                                                       int height) {
                     if (BuildConfig.DEBUG) Log.d(TAG, "Surface created");
-                    setupCamera(a, lens, callback, new Surface(surface));
+                    setupCamera(a, lens, callback, new Surface(surface), startPreview);
                 }
 
                 public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width,
@@ -109,7 +113,7 @@ public class CameraUtil {
     }
 
     private void setupCamera(Activity a, int lens, ImageReader.OnImageAvailableListener callback,
-                             Surface surface) {
+                             Surface surface, boolean startPreview) {
         if (BuildConfig.DEBUG) Log.d(TAG, "Camera setup #2");
         try {
             CameraManager cm = (CameraManager) a.getSystemService(Context.CAMERA_SERVICE);
@@ -135,7 +139,7 @@ public class CameraUtil {
                         }
                         imageReader = ImageReader.newInstance(width, height, ImageFormat.JPEG, 1);
                         imageReader.setOnImageAvailableListener(callback, handler);
-                        openCamera(cm, cameraId, surface);
+                        openCamera(cm, cameraId, surface, startPreview);
                         break;
                     }
                 }
@@ -155,9 +159,10 @@ public class CameraUtil {
 
     @SuppressLint("MissingPermission")
     private void openCamera(final CameraManager cm, final String cameraId,
-                            final Surface surface) throws
+                            final Surface surface, final boolean startPreview) throws
             CameraAccessException {
         if (BuildConfig.DEBUG) Log.d(TAG, "Camera setup #3 (openCamera)");
+        this.surface = surface;
         cm.openCamera(cameraId, new CameraDevice.StateCallback() {
             @Override
             public void onOpened(final CameraDevice camera) {
@@ -173,17 +178,8 @@ public class CameraUtil {
                                     if (BuildConfig.DEBUG) Log.d(TAG,
                                             "Camera setup #5 (captureSessionConfigured)");
                                     CameraUtil.this.session = session;
-                                    try {
-                                        CaptureRequest.Builder builder = camera
-                                                .createCaptureRequest(
-                                                        CameraDevice.TEMPLATE_PREVIEW);
-                                        builder.addTarget(surface);
-                                        CaptureRequest request = builder.build();
-                                        session.setRepeatingRequest(request, null, handler);
-                                    } catch (CameraAccessException e) {
-                                        if (BuildConfig.DEBUG)
-                                            e.printStackTrace();
-                                        shutdown();
+                                    if (startPreview) {
+                                        startPreview();
                                     }
                                 }
 
@@ -216,6 +212,27 @@ public class CameraUtil {
                 shutdown();
             }
         }, handler);
+    }
+
+    public void startPreview() {
+        try {
+            CaptureRequest.Builder builder = camera
+                    .createCaptureRequest(
+                            CameraDevice.TEMPLATE_PREVIEW);
+            builder.addTarget(surface);
+            CaptureRequest request = builder.build();
+            session.setRepeatingRequest(request, null, handler);
+        } catch (CameraAccessException e) {
+            if (BuildConfig.DEBUG) Log.e(TAG, "CameraAccessException: " + e.getMessage());
+        }
+    }
+
+    public void stopPreview() {
+        try {
+            session.stopRepeating();
+        } catch (CameraAccessException e) {
+            if (BuildConfig.DEBUG) Log.e(TAG, "CameraAccessException: " + e.getMessage());
+        }
     }
 
     /**

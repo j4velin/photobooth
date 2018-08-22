@@ -140,7 +140,7 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
                         } else if (BuildConfig.DEBUG) Log.e(Main.TAG,
                                 "Capture failed: Did not receive any image");
                     }
-                }, cameraView);
+                }, cameraView, true);
     }
 
     @Override
@@ -190,6 +190,10 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
         if (cameraIsReady()) {
             cameraUtil.takePhoto();
         }
+    }
+
+    @Override
+    public void preparePhoto() {
     }
 
     @Override

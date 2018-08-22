@@ -126,6 +126,15 @@ public class SocketCameraService extends Service implements ICamera {
     }
 
     @Override
+    public void preparePhoto() {
+        synchronized (cameras) {
+            for (ExternalCameraDevice c : cameras) {
+                c.preparePhotoThread.start();
+            }
+        }
+    }
+
+    @Override
     public void addPhotoTakenCallback(final CameraCallback callback) {
         cameraCallbacks.add(callback);
     }
@@ -182,34 +191,52 @@ public class SocketCameraService extends Service implements ICamera {
                         cb.imageReady(image);
                     }
                 } catch (final Exception e) {
-                    if (BuildConfig.DEBUG) {
-                        Log.e(Main.TAG, "Can send take photo cmd: " + e.getClass()
-                                .getSimpleName() + " - " + e.getMessage());
-                    }
-                    boolean errorOnLastCamera;
-                    synchronized (cameras) {
-                        cameras.remove(ExternalCameraDevice.this);
-                        errorOnLastCamera = cameras.isEmpty();
-                    }
-                    if (errorOnLastCamera) {
-                        ((Main) getApplication()).updateExtCameraConnectionState(false);
-                        for (CameraCallback cb : cameraCallbacks) {
-                            cb.error();
-                        }
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast.makeText(SocketCameraService.this,
-                                        "Camera disconnected: " + e.getMessage(),
-                                        Toast.LENGTH_SHORT)
-                                        .show();
-                            }
-                        });
-                    }
-                    close();
+                    error(e);
                 }
             }
         });
+        private final Thread preparePhotoThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (BuildConfig.DEBUG) Log.d(Main.TAG,
+                        "Sending PREPARE_PHOTO command over socket connection");
+                try {
+                    out.write(Const.COMMAND_PREPARE_PHOTO);
+                    out.newLine();
+                    out.flush();
+                } catch (final Exception e) {
+                    error(e);
+                }
+            }
+        });
+
+        private void error(final Throwable e) {
+            if (BuildConfig.DEBUG) {
+                Log.e(Main.TAG, "Can send cmd: " + e.getClass()
+                        .getSimpleName() + " - " + e.getMessage());
+            }
+            boolean errorOnLastCamera;
+            synchronized (cameras) {
+                cameras.remove(ExternalCameraDevice.this);
+                errorOnLastCamera = cameras.isEmpty();
+            }
+            if (errorOnLastCamera) {
+                ((Main) getApplication()).updateExtCameraConnectionState(false);
+                for (CameraCallback cb : cameraCallbacks) {
+                    cb.error();
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(SocketCameraService.this,
+                                "Camera disconnected: " + e.getMessage(),
+                                Toast.LENGTH_SHORT)
+                                .show();
+                    }
+                });
+            }
+            close();
+        }
 
         private ExternalCameraDevice(final Socket socket) throws IOException {
             in = new DataInputStream(socket.getInputStream());

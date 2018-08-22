@@ -16,6 +16,11 @@ public interface ICamera {
     void takePhoto();
 
     /**
+     * Prepare for taking a photo, a {@link #takePhoto()} request will follow
+     */
+    void preparePhoto();
+
+    /**
      * Adds a new callback listener to be informed about new photos
      *
      * @param callback the callback to be notified once the photo is taken

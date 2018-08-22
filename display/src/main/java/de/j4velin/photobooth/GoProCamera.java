@@ -221,6 +221,10 @@ public class GoProCamera implements ICamera {
     }
 
     @Override
+    public void preparePhoto() {
+    }
+
+    @Override
     public void addPhotoTakenCallback(CameraCallback callback) {
         cameraCallbacks.add(callback);
     }
