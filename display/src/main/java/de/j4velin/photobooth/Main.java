@@ -30,6 +30,9 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
     private final static AtomicBoolean STARTED = new AtomicBoolean(false);
     private final static AtomicBoolean TAKING_PHOTO = new AtomicBoolean(false);
 
+    private final static AtomicBoolean TRIGGER_CONNECTED = new AtomicBoolean(false);
+    private final static AtomicBoolean EXT_CAMERA_CONNECTED = new AtomicBoolean(false);
+
     private final static Object PHOTO_READY_LOCK = new Object();
 
     private ExecutorService photoTaker;
@@ -79,6 +82,7 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
 
     public void addDisplay(final IDisplay display) {
         displays.add(Objects.requireNonNull(display, "display must not be null"));
+        updateConnectionState();
     }
 
     public void removeDisplay(final IDisplay display) {
@@ -103,6 +107,22 @@ public class Main extends Application implements ITrigger.TriggerCallback, ICame
         } else {
             if (BuildConfig.DEBUG) Log.d(Main.TAG, "Taking photo...");
             photoTaker.execute(takePhoto);
+        }
+    }
+
+    void updateExtCameraConnectionState(boolean connected) {
+        EXT_CAMERA_CONNECTED.set(connected);
+        updateConnectionState();
+    }
+
+    void updateTriggerConnectionState(boolean connected) {
+        TRIGGER_CONNECTED.set(connected);
+        updateConnectionState();
+    }
+
+    private void updateConnectionState() {
+        for (IDisplay display : displays) {
+            display.updateStatus(TRIGGER_CONNECTED.get(), EXT_CAMERA_CONNECTED.get());
         }
     }
 

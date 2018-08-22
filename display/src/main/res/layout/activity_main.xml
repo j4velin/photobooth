@@ -56,4 +56,15 @@
         android:textColor="#fff"
         android:textSize="500sp"
         android:visibility="gone"/>
+
+    <TextView
+        android:id="@+id/status"
+        style="?android:attr/textAppearance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginTop="40dp"
+        android:layout_marginStart="80dp"
+        android:textColor="#33ffffff"
+        android:textSize="10sp"/>
 </FrameLayout>

@@ -273,6 +273,32 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
         }, ERROR_TEXT_TIMEOUT_MS);
     }
 
+    @Override
+    public void updateStatus(final boolean triggerConnected, final boolean cameraConnected) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (triggerConnected && cameraConnected) {
+                    findViewById(R.id.status).setVisibility(View.GONE);
+                } else {
+                    TextView status = findViewById(R.id.status);
+                    StringBuilder statusText = new StringBuilder();
+                    if (!triggerConnected) {
+                        statusText.append("Button nicht verbunden");
+                    }
+                    if (!cameraConnected) {
+                        if (!triggerConnected) {
+                            statusText.append(", ");
+                        }
+                        statusText.append("Kamera nicht verbunden");
+                    }
+                    status.setText(statusText.toString());
+                    status.setVisibility(View.VISIBLE);
+                }
+            }
+        });
+    }
+
     private class CountdownUpdater implements Runnable {
         private final int value;
 

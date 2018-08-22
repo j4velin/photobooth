@@ -62,6 +62,7 @@ public class SocketTriggerService extends Service implements ITrigger {
                                             .show();
                                 }
                             });
+                            ((Main) getApplication()).updateTriggerConnectionState(true);
                             clientSocket.setTcpNoDelay(true);
                             BufferedReader in = new BufferedReader(
                                     new InputStreamReader(clientSocket.getInputStream()));
@@ -85,6 +86,7 @@ public class SocketTriggerService extends Service implements ITrigger {
                                             .show();
                                 }
                             });
+                            ((Main) getApplication()).updateTriggerConnectionState(false);
                         } catch (final Throwable t) {
                             if (BuildConfig.DEBUG) {
                                 Log.e(Main.TAG,
@@ -100,6 +102,7 @@ public class SocketTriggerService extends Service implements ITrigger {
                                             .show();
                                 }
                             });
+                            ((Main) getApplication()).updateTriggerConnectionState(false);
                             try {
                                 Thread.sleep(Config.SOCKET_CONNECT_RETRY_SLEEP);
                             } catch (InterruptedException ie) {

@@ -90,6 +90,7 @@ public class SocketCameraService extends Service implements ICamera {
                             synchronized (cameras) {
                                 cameras.add(camera);
                             }
+                            ((Main) getApplication()).updateExtCameraConnectionState(true);
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
@@ -150,6 +151,7 @@ public class SocketCameraService extends Service implements ICamera {
             if (BuildConfig.DEBUG)
                 e.printStackTrace();
         }
+        ((Main) getApplication()).removeCamera(this);
         stopSelf();
     }
 
@@ -188,6 +190,7 @@ public class SocketCameraService extends Service implements ICamera {
                         errorOnLastCamera = cameras.isEmpty();
                     }
                     if (errorOnLastCamera) {
+                        ((Main) getApplication()).updateExtCameraConnectionState(false);
                         for (CameraCallback cb : cameraCallbacks) {
                             cb.error();
                         }

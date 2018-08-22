@@ -30,4 +30,12 @@ public interface IDisplay {
      * An error occurred. Cancels any dialog
      */
     void error();
+
+    /**
+     * Updates the connection state
+     *
+     * @param triggerConnected true, if at least one external trigger is connected
+     * @param cameraConnected  true, if at least one external camera is connected
+     */
+    void updateStatus(boolean triggerConnected, boolean cameraConnected);
 }
