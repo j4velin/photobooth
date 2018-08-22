@@ -13,6 +13,8 @@ import android.graphics.drawable.Drawable;
 import android.hardware.camera2.CameraCharacteristics;
 import android.media.Image;
 import android.media.ImageReader;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -291,6 +293,20 @@ public class CameraPreview extends Activity implements ITrigger, ICamera, IDispl
                             statusText.append(", ");
                         }
                         statusText.append("Kamera nicht verbunden");
+                    }
+                    try {
+                        WifiManager wm = (WifiManager) getApplicationContext()
+                                .getSystemService(Context.WIFI_SERVICE);
+                        WifiInfo wi = wm.getConnectionInfo();
+                        int ip = wi.getIpAddress();
+                        statusText.append(", IP: ").append(
+                                String.format("%d.%d.%d.%d", (ip & 0xff), (ip >> 8 & 0xff),
+                                        (ip >> 16 & 0xff), (ip >> 24 & 0xff)));
+                    } catch (Throwable t) {
+                        if (BuildConfig.DEBUG) {
+                            android.util.Log.e(Main.TAG, "Error getting own ip: " + t.getMessage());
+                            t.printStackTrace();
+                        }
                     }
                     status.setText(statusText.toString());
                     status.setVisibility(View.VISIBLE);
