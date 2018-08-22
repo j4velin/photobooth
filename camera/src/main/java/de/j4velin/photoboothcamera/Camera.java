@@ -40,6 +40,8 @@ public class Camera extends Activity {
 
     private final static int REQUEST_CODE_PERMISSION = 1;
     private final static String TAG = "photobooth.camera";
+    private final static String DEFAULT_DISPLAY_IP = "192.168.178.37";
+    private final static String DEFAULT_HOTSPOT_IP_PREFIX = "192.168.43.";
 
     private final CameraUtil cameraUtil = new CameraUtil();
 
@@ -176,27 +178,36 @@ public class Camera extends Activity {
     }
 
     private static Optional<String> getDisplayIp(final String ipPrefix) {
+        if (DEFAULT_DISPLAY_IP != null && testIp(DEFAULT_DISPLAY_IP)) {
+            return Optional.of(DEFAULT_DISPLAY_IP);
+        }
+
         String[] ips = new String[255];
         for (int i = 1; i < 255; i++) {
             ips[i] = ipPrefix + (i - 1);
         }
 
         // TODO: change predicate to lambda expression when updating to 1.8
-        return Arrays.stream(ips).parallel().filter(new Predicate<String>() {
+        Predicate<String> ipTest = new Predicate<String>() {
             @Override
             public boolean test(String s) {
-                try {
-                    Socket socket = new Socket();
-                    socket.connect(
-                            new InetSocketAddress(s, Config.CAMERA_SOCKET_PORT),
-                            1000);
-                    socket.close();
-                    return true;
-                } catch (Exception ex) {
-                    return false;
-                }
+                return testIp(s);
             }
-        }).findAny();
+        };
+        return Arrays.stream(ips).parallel().filter(ipTest).findAny();
+    }
+
+    private static boolean testIp(String ip) {
+        try {
+            Socket socket = new Socket();
+            socket.connect(
+                    new InetSocketAddress(ip, Config.CAMERA_SOCKET_PORT),
+                    1000);
+            socket.close();
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private void showToast(final String msg) {
@@ -216,30 +227,35 @@ public class Camera extends Activity {
         public void run() {
             try {
                 while (keepRunning) {
-                    WifiManager wm = (WifiManager) getApplicationContext()
-                            .getSystemService(Context.WIFI_SERVICE);
-                    WifiInfo wi = wm.getConnectionInfo();
-                    int ip = wi.getIpAddress();
-                    String ipPrefix = String.format("%d.%d.%d.", (ip & 0xff), (ip >> 8 & 0xff),
-                            (ip >> 16 & 0xff));
+                    Optional<String> displayIp;
+                    if (DEFAULT_DISPLAY_IP != null && testIp(DEFAULT_DISPLAY_IP)) {
+                        displayIp = Optional.of(DEFAULT_DISPLAY_IP);
+                    } else {
+                        WifiManager wm = (WifiManager) getApplicationContext()
+                                .getSystemService(Context.WIFI_SERVICE);
+                        WifiInfo wi = wm.getConnectionInfo();
+                        int ip = wi.getIpAddress();
+                        String ipPrefix = String.format("%d.%d.%d.", (ip & 0xff), (ip >> 8 & 0xff),
+                                (ip >> 16 & 0xff));
 
-                    if (ipPrefix.equals("0.0.0.")) {
-                        ipPrefix = "192.168.43.";
-                    }
-                    if (BuildConfig.DEBUG) Log.d(TAG,
-                            "Try to find IP of display device, prefix=" + ipPrefix);
-
-                    Optional<String> displayIp = getDisplayIp(ipPrefix);
-                    if (!displayIp.isPresent()) {
-                        showToast(
-                                "Could not find any device with open port " + Config.CAMERA_SOCKET_PORT
-                                        + " in range " + ipPrefix + "* - try again in " + (Config.SOCKET_CONNECT_RETRY_SLEEP / 1000) + " sec...");
-                        try {
-                            Thread.sleep(Config.SOCKET_CONNECT_RETRY_SLEEP);
-                        } catch (InterruptedException ie) {
-                            // ignore
+                        if (ipPrefix.equals("0.0.0.")) {
+                            ipPrefix = DEFAULT_HOTSPOT_IP_PREFIX;
                         }
-                        continue;
+                        if (BuildConfig.DEBUG) Log.d(TAG,
+                                "Try to find IP of display device, prefix=" + ipPrefix);
+
+                        displayIp = getDisplayIp(ipPrefix);
+                        if (!displayIp.isPresent()) {
+                            showToast(
+                                    "Could not find any device with open port " + Config.CAMERA_SOCKET_PORT
+                                            + " in range " + ipPrefix + "* - try again in " + (Config.SOCKET_CONNECT_RETRY_SLEEP / 1000) + " sec...");
+                            try {
+                                Thread.sleep(Config.SOCKET_CONNECT_RETRY_SLEEP);
+                            } catch (InterruptedException ie) {
+                                // ignore
+                            }
+                            continue;
+                        }
                     }
                     if (BuildConfig.DEBUG) Log.d(TAG, "Connecting to " + displayIp.get());
                     showToast("Connecting to " + displayIp.get());
