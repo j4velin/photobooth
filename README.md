@@ -12,7 +12,7 @@ button -- Raspberry Pi ----> Android tablet <----> Android camera
 
                           or
                           
-button -- Raspberry Pi ----> Android tablet
+button -- Raspberry Pi ----> Android tablet with front-facing camera
 
 ## photos ##
 
