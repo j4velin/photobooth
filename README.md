@@ -10,6 +10,10 @@ button -- Raspberry Pi ----> Android tablet <----> GoPro camera
                           
 button -- Raspberry Pi ----> Android tablet <----> Android camera
 
+                          or
+                          
+button -- Raspberry Pi ----> Android tablet
+
 ## photos ##
 
 
